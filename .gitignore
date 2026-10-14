@@ -1,0 +1,36 @@
+# build output
+_build/
+
+# Python environment (~950 MB): recreate with `uv venv` + inference/requirements.txt
+sidecar/.venv/
+__pycache__/
+*.pyc
+
+# generated outputs
+out/
+india/out/
+reports/
+cache/
+
+# inference service runtime files
+inference/service.log
+inference/service.pid
+inference/service.pid.new
+
+# personal data: holdings and NAV history (see india/data/portfolio.example.csv)
+india/data/portfolio.csv
+india/data/nav_log.csv
+data/nav_log.csv
+
+# market data downloaded from Yahoo Finance (redistribution not permitted):
+# re-create with scripts/fetch_nse.py
+india/data/daily/
+india/data/benchmark.csv
+india/data/fundamentals.csv
+
+# Screener.in exports (personal, licensed data)
+data/fundamentals/
+
+# local editor / tool settings
+.claude/
+.DS_Store

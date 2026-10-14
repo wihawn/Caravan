@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolio Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f3f0;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --pos: #2a78d6; --neg: #e34948; --mid: #f0efec;
+  --good: #0ca30c; --good-ink: #006300; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --accent: #2a78d6; --accent-ink: #ffffff;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --pos: #3987e5; --neg: #e66767; --mid: #383835;
+    --good-ink: #0ca30c; --accent: #3987e5;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --pos: #3987e5; --neg: #e66767; --mid: #383835;
+  --good-ink: #0ca30c; --accent: #3987e5;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+/* Arial for all text (tables, charts, tooltips, inputs, log); Comfortaa for headings and headline numbers */
+*, *::before, *::after, svg text { font-family: Arial, Helvetica, sans-serif; }
+h1, h2, h3, nav.tabs button, .kpi .value, dialog header b { font-family: Comfortaa, Arial, Helvetica, sans-serif; font-weight: 700; letter-spacing: 0; }
+/* straight edges everywhere, including native controls (WebKit rounds search fields and checkboxes) */
+input, select, textarea, button { border-radius: 0; }
+input[type="search"] { -webkit-appearance: none; appearance: none; }
+input[type="checkbox"] { accent-color: var(--accent); }
+html, body { margin: 0; background: var(--page); color: var(--ink); }
+body { font: 14px/1.45 Arial, Helvetica, sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+
+header.top { position: sticky; top: 0; z-index: 5; background: var(--page); border-bottom: 1px solid var(--border); }
+.topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-right: auto; }
+.brand h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+.muted { color: var(--muted); }
+.ink2 { color: var(--ink-2); }
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button { cursor: pointer; border-radius: 0; padding: 7px 12px; border: 1px solid var(--border); background: var(--surface); }
+button:hover { background: var(--surface-2); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+button.primary:hover { filter: brightness(1.07); }
+button:disabled { opacity: .5; cursor: progress; }
+button.icon { padding: 4px 8px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 4px 10px; border-radius: 0; background: var(--surface-2); color: var(--ink-2); }
+.spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--axis); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+nav.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+nav.tabs button { border: 0; border-radius: 0; background: none; padding: 9px 12px; color: var(--ink-2); border-bottom: 2px solid transparent; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+main { padding: 16px 0 48px; }
+section[role="tabpanel"][hidden] { display: none; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 0; padding: 16px; box-shadow: var(--shadow); margin-bottom: 16px; }
+.card h2 { font-size: 14px; margin: 0 0 2px; font-weight: 650; }
+.card .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.grid2 > .card { margin-bottom: 0; }
+.stack > * + * { margin-top: 16px; }
+
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (min-width: 1100px) { .kpis { grid-template-columns: repeat(6, 1fr); } .kpis.four { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 600px) { .kpis, .kpis.four { grid-template-columns: repeat(2, 1fr); } }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 0; padding: 12px 14px; box-shadow: var(--shadow); }
+.kpi .label { color: var(--ink-2); font-size: 12.5px; }
+.kpi .value { font-size: 22px; font-weight: 650; letter-spacing: -.01em; margin-top: 2px; }
+.kpi .delta { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.up { color: var(--good-ink); }
+.down { color: var(--critical); }
+
+.banner { border-radius: 0; padding: 10px 12px; margin: 12px 0 0; background: var(--surface); border: 1px solid var(--border); font-size: 13px; }
+.banner ul { margin: 4px 0 0; padding-left: 18px; }
+.status { display: inline-flex; gap: 6px; align-items: baseline; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 0; flex: none; transform: translateY(-1px); }
+.status.critical::before { background: var(--critical); }
+.status.warning::before { background: var(--warning); }
+.status.good::before { background: var(--good); }
+.status.pending::before { background: var(--axis); }
+.alerts { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.alerts li { padding: 8px 10px; border-radius: 0; background: var(--surface-2); }
+
+.tablewrap { overflow-x: auto; margin: 0 -4px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { font-weight: 600; color: var(--ink-2); font-size: 12px; position: sticky; top: 0; background: var(--surface); }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--ink); }
+th .arrow { color: var(--muted); font-size: 10px; margin-left: 3px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.wrap { white-space: normal; min-width: 280px; color: var(--ink-2); }
+td.wrap-s { white-space: normal; min-width: 150px; }
+tr.held td:first-child { font-weight: 650; }
+tbody tr:hover td { background: var(--surface-2); }
+.tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 0; background: var(--surface-2); color: var(--ink-2); margin-left: 6px; font-weight: 500; }
+.action { font-weight: 600; font-size: 12px; padding: 2px 8px; border-radius: 0; display: inline-block; }
+.action.buy { background: color-mix(in srgb, var(--pos) 16%, transparent); }
+.action.sell { background: color-mix(in srgb, var(--neg) 16%, transparent); }
+.action.hold { background: var(--surface-2); color: var(--ink-2); }
+
+.toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar input[type="search"] { padding: 6px 10px; border-radius: 0; border: 1px solid var(--border); background: var(--surface); min-width: 200px; }
+label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key-line { width: 14px; height: 2px; border-radius: 0; display: inline-block; }
+.key-rect { width: 10px; height: 10px; border-radius: 0; display: inline-block; }
+.chart { width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart .lbl { fill: var(--ink-2); font-size: 11.5px; }
+
+.tooltip { position: fixed; z-index: 50; pointer-events: none; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 18px rgba(0,0,0,.14); border-radius: 0; padding: 8px 10px; font-size: 12.5px; min-width: 140px; }
+.tooltip .t-head { color: var(--muted); font-size: 11.5px; margin-bottom: 4px; }
+.tooltip .t-row { display: flex; align-items: center; gap: 8px; }
+.tooltip .t-row b { font-variant-numeric: tabular-nums; }
+.tooltip .t-row span:last-child { color: var(--ink-2); }
+
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px 18px; }
+.field label { display: block; font-weight: 600; font-size: 12.5px; margin-bottom: 4px; }
+.field .help { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.field input, td input { width: 100%; padding: 6px 9px; border-radius: 0; border: 1px solid var(--border); background: var(--surface); }
+.field .unit { display: flex; align-items: center; gap: 6px; }
+.field .unit span { color: var(--muted); }
+td input { min-width: 90px; }
+input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.note { font-size: 12.5px; color: var(--ink-2); }
+.empty { padding: 32px; text-align: center; color: var(--ink-2); }
+
+dialog { border: 1px solid var(--border); border-radius: 0; background: var(--surface); color: var(--ink); width: min(900px, calc(100vw - 32px)); padding: 0; }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+dialog pre { margin: 0; padding: 12px 16px; max-height: 60vh; overflow: auto; font: 12px/1.45 Arial, Helvetica, sans-serif; white-space: pre-wrap; }
+.refetching main { opacity: .55; transition: opacity .2s; }
+
+@media (max-width: 600px) {
+  .kpi .value { font-size: 19px; }
+  .grid2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Portfolio Engine</h1>
+        <span id="asof" class="muted"></span>
+        <span class="pill" title="Overview, Recommendations, Risk, Rankings and Volatility come from the prototype pipeline. The ML pipeline is being built: see Models.">Prototype pipeline</span>
+      </div>
+      <div class="actions">
+        <span id="jobpill" class="pill" hidden></span>
+        <button id="svcpill" class="pill" title="Inference service status — open the Models tab" style="border:0;cursor:pointer"><span class="status warning">Models: checking…</span></button>
+        <button id="btn-log" title="Show the engine log">Log</button>
+        <button id="btn-theme" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+        <button id="btn-refresh" title="Download latest NSE prices &amp; fundamentals, then run">Refresh data &amp; run</button>
+        <button id="btn-run" class="primary">Run analysis</button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-tab="trades" aria-selected="false">Recommendations</button>
+      <button role="tab" data-tab="risk" aria-selected="false">Risk</button>
+      <button role="tab" data-tab="rank" aria-selected="false">Rankings</button>
+      <button role="tab" data-tab="vol" aria-selected="false">Volatility</button>
+      <button role="tab" data-tab="models" aria-selected="false">Models</button>
+      <button role="tab" data-tab="holdings" aria-selected="false">Holdings &amp; settings</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="banner"></div>
+  <main>
+    <section role="tabpanel" id="tab-overview">
+      <div class="kpis" id="kpis"></div>
+      <div class="card">
+        <h2>Growth of ₹100 — last year</h2>
+        <p class="sub">Current weights and recommended weights, held constant over the past year, against the Nifty 50. A backtest of today's weights, not your realised history.</p>
+        <div id="legend-growth" class="legend"></div>
+        <div id="chart-growth" class="chart"></div>
+      </div>
+      <div class="card">
+        <h2>Positions</h2>
+        <p class="sub" id="positions-sub"></p>
+        <div class="tablewrap" id="positions"></div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="tab-trades" hidden>
+      <div class="kpis four" id="opt-kpis"></div>
+      <div class="card">
+        <h2>Recommended trades</h2>
+        <p class="sub">Sells first, then buys, largest first. Changes smaller than the minimum-trade setting are shown as HOLD.</p>
+        <div class="tablewrap" id="trades"></div>
+      </div>
+      <div class="card">
+        <h2>Weights: now vs target</h2>
+        <p class="sub">Every stock that is held now or in the target portfolio.</p>
+        <div id="legend-weights" class="legend"></div>
+        <div id="chart-weights" class="chart"></div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="tab-risk" hidden>
+      <div class="card" id="alerts-card">
+        <h2>Alerts</h2>
+        <p class="sub">Current portfolio, checked against your limits.</p>
+        <ul class="alerts" id="alerts"></ul>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Risk metrics</h2>
+          <p class="sub">VolaTTM volatility forecasts combined with shrunk historical correlations.</p>
+          <div class="tablewrap" id="risk-table"></div>
+        </div>
+        <div class="card">
+          <h2>Share of portfolio risk</h2>
+          <p class="sub">Each holding's contribution to total forecast volatility.</p>
+          <div id="legend-ctr" class="legend"></div>
+          <div id="chart-ctr" class="chart"></div>
+        </div>
+        <div class="card">
+          <h2>Sector exposure</h2>
+          <p class="sub">Share of portfolio value per sector.</p>
+          <div id="legend-sector" class="legend"></div>
+          <div id="chart-sector" class="chart"></div>
+        </div>
+        <div class="card">
+          <h2>Factor tilt</h2>
+          <p class="sub">Weighted average z-score of holdings. 0 = average stock in the universe.</p>
+          <div id="legend-tilt" class="legend"></div>
+          <div id="chart-tilt" class="chart"></div>
+        </div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="tab-rank" hidden>
+      <div class="card">
+        <h2>Factor ranking</h2>
+        <p class="sub">Cross-sectional z-scores (positive = better than the average stock). Value, quality and growth are compared within sector. Alpha = IC × forecast vol × composite score.</p>
+        <div class="toolbar">
+          <input type="search" id="rank-search" placeholder="Filter by symbol or sector" aria-label="Filter rankings">
+          <label class="check"><input type="checkbox" id="rank-held"> Held only</label>
+        </div>
+        <div class="tablewrap" id="rank"></div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="tab-vol" hidden>
+      <div class="card">
+        <h2>Holdings: forecast vs recent volatility</h2>
+        <p class="sub">Annualised. VolaTTM's 22-session average forecast against realised volatility over the last 22 sessions.</p>
+        <div id="legend-vol" class="legend"></div>
+        <div id="chart-vol" class="chart"></div>
+      </div>
+      <div class="card">
+        <h2>VolaTTM forecasts</h2>
+        <p class="sub" id="vol-sub"></p>
+        <div class="toolbar">
+          <input type="search" id="vol-search" placeholder="Filter by symbol" aria-label="Filter volatility table">
+          <label class="check"><input type="checkbox" id="vol-held"> Held only</label>
+        </div>
+        <div class="tablewrap" id="vol"></div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="tab-models" hidden>
+      <div class="card">
+        <h2>Inference service</h2>
+        <p class="sub" id="svc-sub">Python service that runs the ML models. The OCaml engine sends it prepared data; it never fetches data itself.</p>
+        <div class="row-actions" style="margin-top:0;margin-bottom:12px">
+          <span id="svc-status"></span>
+          <span style="margin-left:auto"></span>
+          <button id="btn-svc-start">Start service</button>
+          <button id="btn-svc-stop">Stop service</button>
+        </div>
+        <div class="tablewrap" id="svc-models"></div>
+      </div>
+
+      <div class="card">
+        <h2>Model forecasts</h2>
+        <p class="sub" id="fc-sub">Kronos 21-day return forecast and TTM 21-day volatility forecast, through the cached OCaml client.</p>
+        <div class="toolbar">
+          <button class="primary" id="btn-fc-held">Run forecasts: holdings</button>
+          <button id="btn-fc-all" title="All stocks in the universe. First run ~5 minutes on CPU; cached afterwards.">Run forecasts: all stocks</button>
+          <label class="check"><input type="checkbox" id="fc-held" checked> Held only</label>
+        </div>
+        <div id="fc-empty"></div>
+        <div id="fc-body">
+          <h3 style="font-size:13px;margin:4px 0 2px">Kronos: forecast return over the next 21 trading days</h3>
+          <div class="legend"><span><i class="key-rect" style="background:var(--pos)"></i>Up</span><span><i class="key-rect" style="background:var(--neg)"></i>Down</span></div>
+          <div id="chart-kronos" class="chart"></div>
+          <div class="tablewrap" id="fc-table" style="margin-top:16px"></div>
+          <p class="note" id="fc-foot" style="margin:10px 0 0"></p>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h2>ML pipeline progress</h2>
+          <p class="sub">Milestones from the upgrade plan (docs/milestones.md).</p>
+          <ul class="alerts" id="milestones"></ul>
+        </div>
+        <div class="card">
+          <h2>Known caveats</h2>
+          <p class="sub">Findings so far. They affect how much weight these models deserve.</p>
+          <ul class="alerts" id="caveats"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="tab-holdings" hidden>
+      <div class="card">
+        <h2>Holdings</h2>
+        <p class="sub">NSE symbols (e.g. RELIANCE, HDFCBANK). The average buy price is optional and enables profit-and-loss tracking. After adding a stock that isn't in the data yet, use <b>Refresh data &amp; run</b>.</p>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Symbol</th><th class="num">Shares</th><th class="num">Avg. buy price</th><th></th></tr></thead>
+          <tbody id="holdings-body"></tbody>
+        </table></div>
+        <datalist id="universe"></datalist>
+        <div class="row-actions">
+          <button id="btn-addrow">+ Add stock</button>
+          <div class="field" style="display:flex;align-items:center;gap:8px;margin-left:auto">
+            <label for="cash" style="margin:0">Cash</label>
+            <input id="cash" type="number" min="0" step="1000" style="width:160px">
+          </div>
+        </div>
+        <div class="row-actions">
+          <button class="primary" id="btn-save-holdings">Save holdings</button>
+          <button id="btn-save-run">Save &amp; run analysis</button>
+          <span class="note" id="holdings-msg" role="status"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Settings</h2>
+        <p class="sub" id="settings-sub"></p>
+        <form class="form" id="settings" onsubmit="return false"></form>
+        <div class="row-actions">
+          <button class="primary" id="btn-save-settings">Save settings</button>
+          <span class="note" id="settings-msg" role="status"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="logdlg">
+  <header><b>Engine log</b><button id="btn-closelog">Close</button></header>
+  <pre id="logtext"></pre>
+</dialog>
+<div id="tip" class="tooltip" hidden></div>
+
+<script>
+"use strict";
+let REPORT = null, STATE = null;
+const $ = (id) => document.getElementById(id);
+const SVGNS = "http://www.w3.org/2000/svg";
+
+/* ---------- DOM helpers (all data goes through textContent) ---------- */
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "style") e.style.cssText = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+}
+function s(tag, attrs, ...kids) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v != null) e.setAttribute(k, v);
+  for (const k of kids) if (k != null) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+}
+
+/* ---------- formatting ---------- */
+const cur = () => (REPORT && REPORT.currency) || (STATE && STATE.currency) || "₹";
+const isINR = () => ["₹", "Rs"].includes(cur());
+const fin = (x) => typeof x === "number" && isFinite(x);
+function money(x, dp = 0) {
+  if (!fin(x)) return "—";
+  const f = new Intl.NumberFormat(isINR() ? "en-IN" : "en-US", { maximumFractionDigits: dp, minimumFractionDigits: dp });
+  return (x < 0 ? "−" : "") + cur() + f.format(Math.abs(x));
+}
+const smoney = (x) => (fin(x) && x > 0 ? "+" : "") + money(x);
+const pct = (x, dp = 1) => fin(x) ? (x * 100).toFixed(dp) + "%" : "—";
+const spct = (x, dp = 1) => fin(x) ? (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x * 100).toFixed(dp) + "%" : "—";
+const z = (x) => fin(x) ? (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(2) : "—";
+const signCls = (x) => !fin(x) || Math.abs(x) < 1e-9 ? "" : x > 0 ? "up" : "down";
+const num = (x, dp = 2) => fin(x) ? x.toLocaleString(isINR() ? "en-IN" : "en-US", { maximumFractionDigits: dp }) : "—";
+
+/* ---------- tooltip ---------- */
+const tip = $("tip");
+function showTip(ev, head, rows) {
+  tip.replaceChildren(h("div", { class: "t-head" }, head),
+    ...rows.map(r => h("div", { class: "t-row" },
+      r.color ? h("i", { class: "key-line", style: `background:${r.color}` }) : null, h("b", {}, r.value), h("span", {}, r.label || ""))));
+  tip.hidden = false;
+  const pad = 14, w = tip.offsetWidth, ht = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + ht > innerHeight - 8) y = ev.clientY - ht - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+
+/* ---------- charts ---------- */
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1, raw = span / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(st => span / st <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function legend(host, items, kind = "line") {
+  host.replaceChildren(...items.map(it => h("span", {}, h("i", { class: kind === "line" ? "key-line" : "key-rect", style: `background:${it.color}` }), it.name)));
+}
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function lineChart(host, dates, series, fmt) {
+  host.replaceChildren();
+  const W = Math.max(320, host.clientWidth), H = W < 520 ? 220 : 290;
+  const m = { l: 44, r: W < 520 ? 12 : 96, t: 10, b: 26 };
+  const n = dates.length, all = series.flatMap(x => x.values).filter(fin);
+  let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+  const X = i => m.l + (W - m.l - m.r) * (n > 1 ? i / (n - 1) : 0);
+  const Y = v => m.t + (H - m.t - m.b) * (1 - (v - lo) / (hi - lo));
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": series.map(x => x.name).join(", ") });
+  for (const t of niceTicks(lo, hi, 5)) {
+    svg.append(s("line", { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), stroke: css("--grid"), "stroke-width": 1 }));
+    svg.append(s("text", { x: m.l - 6, y: Y(t) + 3.5, "text-anchor": "end" }, String(t)));
+  }
+  let lastMonth = "", labels = [];
+  dates.forEach((d, i) => { const mm = d.slice(0, 7); if (mm !== lastMonth) { labels.push(i); lastMonth = mm; } });
+  const every = Math.ceil(labels.length / (W < 520 ? 4 : 7));
+  labels.filter((_, k) => k % every === 0 && _ > 0).forEach(i => {
+    const d = new Date(dates[i] + "T00:00:00");
+    svg.append(s("text", { x: X(i), y: H - 8, "text-anchor": "middle" }, d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" })));
+  });
+  svg.append(s("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: css("--axis") }));
+  series.forEach(se => {
+    const d = se.values.map((v, i) => (i ? "L" : "M") + X(i).toFixed(1) + "," + Y(v).toFixed(1)).join("");
+    svg.append(s("path", { d, fill: "none", stroke: se.color, "stroke-width": 2, "stroke-linejoin": "miter", "stroke-linecap": "butt" }));
+  });
+  if (m.r > 40) { // direct end labels, nudged apart
+    const ends = series.map(se => ({ se, y: Y(se.values[n - 1]) })).sort((a, b) => a.y - b.y);
+    for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 14) ends[k].y = ends[k - 1].y + 14;
+    ends.forEach(e => svg.append(s("text", { x: X(n - 1) + 8, y: e.y + 4, class: "lbl" }, `${e.se.short || e.se.name} ${fmt(e.se.values[n - 1])}`)));
+  }
+  const cross = s("line", { y1: m.t, y2: H - m.b, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" });
+  const dots = series.map(se => s("circle", { r: 4, fill: se.color, stroke: css("--surface"), "stroke-width": 2, visibility: "hidden" }));
+  svg.append(cross, ...dots);
+  const hit = s("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" });
+  hit.addEventListener("pointermove", ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+    const i = Math.max(0, Math.min(n - 1, Math.round((px - m.l) / (W - m.l - m.r) * (n - 1))));
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("visibility", "visible");
+    dots.forEach((c, k) => { c.setAttribute("cx", X(i)); c.setAttribute("cy", Y(series[k].values[i])); c.setAttribute("visibility", "visible"); });
+    const d = new Date(dates[i] + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    showTip(ev, d, series.map(se => ({ color: se.color, value: fmt(se.values[i]), label: se.name })));
+  });
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); dots.forEach(c => c.setAttribute("visibility", "hidden")); hideTip(); });
+  svg.append(hit);
+  host.append(svg);
+}
+
+/* horizontal bars; rows: [{label, values:[...]}], series: [{name,color}]; values may be negative */
+function hbars(host, rows, series, fmt, opts = {}) {
+  host.replaceChildren();
+  if (!rows.length) { host.append(h("div", { class: "empty" }, "Nothing to show")); return; }
+  const W = Math.max(300, host.clientWidth), bh = series.length > 1 ? 9 : 13, gap = 2, groupGap = 10;
+  const gh = series.length * bh + (series.length - 1) * gap;
+  const short = (t) => t.length > 22 ? t.slice(0, 21) + "…" : t;
+  const lw = Math.min(W * 0.4, Math.max(60, ...rows.map(r => short(r.label).length * 6.3 + 14))), rw = 52, H = rows.length * (gh + groupGap) + 18;
+  const vals = rows.flatMap(r => r.values).filter(fin);
+  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals, 1e-9);
+  const X = v => lw + (W - lw - rw) * (v - lo) / (hi - lo || 1);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+  for (const t of niceTicks(lo, hi, W < 500 ? 3 : 5)) {
+    svg.append(s("line", { x1: X(t), x2: X(t), y1: 0, y2: H - 16, stroke: t === 0 ? css("--axis") : css("--grid") }));
+    svg.append(s("text", { x: X(t), y: H - 3, "text-anchor": "middle" }, opts.tick ? opts.tick(t) : String(t)));
+  }
+  rows.forEach((r, gi) => {
+    const y0 = gi * (gh + groupGap) + 4;
+    svg.append(s("text", { x: lw - 8, y: y0 + gh / 2 + 4, "text-anchor": "end", class: "lbl" }, short(r.label)));
+    r.values.forEach((v, si) => {
+      if (!fin(v)) return;
+      const y = y0 + si * (bh + gap), x0 = X(0), x1 = X(v), w = Math.abs(x1 - x0), rad = 0;
+      const L = Math.min(x0, x1), R = Math.max(x0, x1), pos = v >= 0;
+      // round only the data end, keep the baseline end square
+      const d = pos
+        ? `M${L},${y}H${R - rad}Q${R},${y} ${R},${y + rad}V${y + bh - rad}Q${R},${y + bh} ${R - rad},${y + bh}H${L}Z`
+        : `M${R},${y}H${L + rad}Q${L},${y} ${L},${y + rad}V${y + bh - rad}Q${L},${y + bh} ${L + rad},${y + bh}H${R}Z`;
+      const bar = s("path", { d: w < 0.5 ? `M${x0},${y}h0.5v${bh}h-0.5Z` : d, fill: opts.colorFor ? opts.colorFor(v) : series[si].color });
+      const hitbox = s("rect", { x: lw, y: y - 1, width: W - lw - rw, height: bh + 2, fill: "transparent", tabindex: 0 });
+      const on = ev => { bar.setAttribute("opacity", ".8"); showTip(ev, r.label, r.values.map((vv, k) => ({ color: series[k].color, value: fmt(vv), label: series[k].name }))); };
+      hitbox.addEventListener("pointermove", on);
+      hitbox.addEventListener("focus", ev => { const b = hitbox.getBoundingClientRect(); on({ clientX: b.left + b.width / 2, clientY: b.top }); });
+      for (const evn of ["pointerleave", "blur"]) hitbox.addEventListener(evn, () => { bar.setAttribute("opacity", "1"); hideTip(); });
+      svg.append(bar, hitbox);
+    });
+    if (opts.endLabel) { // label the last series only (the decision value)
+      const v = r.values[r.values.length - 1];
+      if (fin(v)) svg.append(s("text", { x: v >= 0 ? Math.max(X(v), X(0)) + 5 : X(0) + 5, y: y0 + gh - 1, class: "lbl" }, fmt(v)));
+    }
+  });
+  host.append(svg);
+}
+
+/* ---------- sortable table ---------- */
+function table(host, cols, rows, o = {}) {
+  let key = o.sortKey, desc = o.desc ?? true;
+  const render = () => {
+    const data = key ? [...rows].sort((a, b) => {
+      const c = cols.find(c => c.key === key), va = c.sortVal ? c.sortVal(a) : a[key], vb = c.sortVal ? c.sortVal(b) : b[key];
+      const r = typeof va === "string" ? va.localeCompare(vb) : ((fin(va) ? va : -Infinity) - (fin(vb) ? vb : -Infinity));
+      return desc ? -r : r;
+    }) : rows;
+    const thead = h("thead", {}, h("tr", {}, cols.map(c => {
+      const th = h("th", { class: (c.num ? "num " : "") + (c.sort !== false ? "sortable" : ""), title: c.title || null }, c.label,
+        key === c.key ? h("span", { class: "arrow" }, desc ? "▼" : "▲") : null);
+      if (c.sort !== false) th.addEventListener("click", () => { if (key === c.key) desc = !desc; else { key = c.key; desc = !!c.num; } render(); });
+      return th;
+    })));
+    const tbody = h("tbody", {}, data.map(r => h("tr", { class: o.rowClass ? o.rowClass(r) : null },
+      cols.map(c => { const v = c.render ? c.render(r) : (c.fmt ? c.fmt(r[c.key]) : r[c.key]);
+        const td = h("td", { class: [c.num ? "num" : "", c.cls ? (typeof c.cls === "function" ? c.cls(r) : c.cls) : ""].join(" ").trim() || null }, v);
+        if (c.bg) td.style.background = c.bg(r); return td; }))));
+    host.replaceChildren(data.length ? h("table", {}, thead, tbody) : h("div", { class: "empty" }, o.empty || "No rows"));
+  };
+  render();
+}
+
+/* ---------- render ---------- */
+const held = (a) => a.shares !== 0;
+function kpi(label, value, delta, cls) {
+  return h("div", { class: "kpi" }, h("div", { class: "label" }, label), h("div", { class: "value" + (cls ? " " + cls : "") }, value),
+    delta ? h("div", { class: "delta" }, delta) : null);
+}
+function zTint(v) { // diverging cell tint: blue = good, red = poor, gray-neutral near 0
+  if (!fin(v)) return "";
+  const a = Math.min(1, Math.abs(v) / 2.5) * 28;
+  return `color-mix(in srgb, ${v >= 0 ? "var(--pos)" : "var(--neg)"} ${a.toFixed(0)}%, transparent)`;
+}
+
+function renderAll() {
+  const R = REPORT;
+  if (!R) {
+    for (const id of ["kpis", "positions", "trades", "rank", "vol"]) $(id).replaceChildren(h("div", { class: "empty" }, "No report yet. Add your holdings, then click Run analysis."));
+    return;
+  }
+  $("asof").textContent = `Prices as of ${R.as_of} · run ${R.generated_at}`;
+  const A = R.assets, H = A.filter(held);
+
+  // warnings
+  const warns = R.warnings || [];
+  $("banner").replaceChildren(...(warns.length ? [h("div", { class: "banner" }, h("span", { class: "status warning" }, "Notes from the engine"),
+    h("ul", {}, warns.map(w => h("li", {}, w))))] : []));
+
+  // KPIs
+  const day = H.reduce((t, a) => t + (a.price - a.prev_close) * a.shares, 0);
+  const withCost = H.filter(a => fin(a.cost));
+  const unreal = withCost.reduce((t, a) => t + (a.price - a.cost) * a.shares, 0);
+  const costVal = withCost.reduce((t, a) => t + a.cost * a.shares, 0);
+  const rn = R.risk_now, ra = R.risk_after, P = R.perf, B = R.perf_bench;
+  $("kpis").replaceChildren(
+    kpi("Portfolio value", money(R.nav), `Cash ${money(R.cash)} · ${H.length} holdings`),
+    kpi("Today", smoney(day), spct(day / (R.nav - day), 2) + " vs previous close", signCls(day)),
+    kpi("Unrealised P&L", withCost.length ? smoney(unreal) : "—", withCost.length ? spct(unreal / costVal) + " on cost" : "Add buy prices in Holdings", withCost.length ? signCls(unreal) : ""),
+    kpi("Forecast volatility", pct(rn.vol), `→ ${pct(ra.vol)} after rebalance`),
+    kpi("1-day VaR (95%)", money(rn.var95_1d), `Expected shortfall ${money(rn.cvar95_1d)}`),
+    kpi("Past year (backtest)", P ? spct(P.total_return) : "—", B ? `Nifty 50 ${spct(B.total_return)} · beta ${fin(rn.beta) ? rn.beta.toFixed(2) : "—"}` : null, P ? signCls(P.total_return) : ""),
+  );
+
+  // growth chart
+  const bc = R.backcast, idx = (rets) => { let v = 100; return rets.map(r => (v *= 1 + r)); };
+  const ser = [{ name: "Current weights", short: "Current", color: css("--s1"), values: idx(bc.current) },
+               { name: "Recommended weights", short: "Target", color: css("--s2"), values: idx(bc.target) }];
+  if (bc.benchmark) ser.push({ name: "Nifty 50", short: "Nifty", color: css("--s3"), values: idx(bc.benchmark) });
+  legend($("legend-growth"), ser);
+  lineChart($("chart-growth"), bc.dates, ser, v => v.toFixed(1));
+
+  // positions
+  $("positions-sub").textContent = P ? `Backtest of current weights: annualised ${spct(P.ann_return)}, volatility ${pct(P.ann_vol)}, Sharpe ${P.sharpe.toFixed(2)}, max drawdown ${pct(P.max_dd)}.` + (R.twr ? ` Time-weighted return from your NAV log: ${spct(R.twr.twr)} (${R.twr.from} → ${R.twr.to}).` : "") : "";
+  table($("positions"), [
+    { key: "symbol", label: "Symbol" },
+    { key: "sector", label: "Sector", cls: "ink2" },
+    { key: "shares", label: "Shares", num: true, fmt: v => num(v, 0) },
+    { key: "price", label: "Price", num: true, fmt: v => num(v, 2) },
+    { key: "value", label: "Value", num: true, sortVal: a => a.shares * a.price, render: a => money(a.shares * a.price) },
+    { key: "w_now", label: "Weight", num: true, fmt: v => pct(v) },
+    { key: "day", label: "Today", num: true, sortVal: a => a.price / a.prev_close - 1, render: a => spct(a.price / a.prev_close - 1, 2), cls: a => signCls(a.price - a.prev_close) },
+    { key: "pnl", label: "Unrealised", num: true, sortVal: a => fin(a.cost) ? (a.price - a.cost) * a.shares : NaN, render: a => fin(a.cost) ? smoney((a.price - a.cost) * a.shares) : "—", cls: a => fin(a.cost) ? signCls(a.price - a.cost) : "" },
+    { key: "composite", label: "Score", num: true, fmt: z, bg: a => zTint(a.composite) },
+    { key: "vol_term", label: "Fcst vol", num: true, fmt: v => pct(v) },
+    { key: "ctr", label: "Risk share", num: true, sortVal: a => rn.pct_ctr[A.indexOf(a)], render: a => pct(rn.pct_ctr[A.indexOf(a)]) },
+  ], H, { sortKey: "w_now", empty: "No holdings — add them in Holdings & settings." });
+
+  // optimisation + trades
+  const o = R.optimisation;
+  $("opt-kpis").replaceChildren(
+    kpi("Expected alpha", spct(o.alpha_target, 2), `from ${spct(o.alpha_now, 2)} now`),
+    kpi("Forecast volatility", pct(ra.vol), `from ${pct(rn.vol)}${o.target_vol ? ` · target ${pct(o.target_vol)}` : ""}`),
+    kpi("Turnover (one-way)", pct(o.turnover), `Est. trading cost ${money(o.est_cost)}`),
+    kpi("Trades", String(R.trades.filter(t => t.action !== "HOLD").length), `${R.trades.filter(t => t.action.startsWith("SELL")).length} sells · ${R.trades.filter(t => t.action.startsWith("BUY")).length} buys`),
+  );
+  const actCls = a => a.startsWith("BUY") ? "buy" : a.startsWith("SELL") ? "sell" : "hold";
+  table($("trades"), [
+    { key: "action", label: "Action", sort: false, render: t => h("span", { class: "action " + actCls(t.action) }, t.action) },
+    { key: "symbol", label: "Symbol", sort: false },
+    { key: "w_now", label: "Now", num: true, sort: false, fmt: v => pct(v) },
+    { key: "w_target", label: "Target", num: true, sort: false, fmt: v => pct(v) },
+    { key: "shares", label: "Shares", num: true, sort: false, render: t => (t.shares > 0 ? "+" : "") + num(t.shares, 0) },
+    { key: "notional", label: "Amount", num: true, sort: false, render: t => smoney(t.notional) },
+    { key: "reason", label: "Why", sort: false, cls: "wrap" },
+  ], R.trades, { empty: "No trades recommended." });
+  const wrows = A.filter(a => a.w_now > 1e-4 || a.w_target > 1e-3).sort((a, b) => b.w_target - a.w_target)
+    .map(a => ({ label: a.symbol, values: [a.w_now, a.w_target] }));
+  const wser = [{ name: "Now", color: css("--s1") }, { name: "Target", color: css("--s2") }];
+  legend($("legend-weights"), wser, "rect");
+  hbars($("chart-weights"), wrows, wser, v => pct(v), { tick: t => pct(t, 0), endLabel: true });
+
+  // risk
+  const alerts = rn.alerts || [];
+  $("alerts").replaceChildren(...(alerts.length ? alerts.map(a => h("li", {}, h("span", { class: "status critical" }, a)))
+    : [h("li", {}, h("span", { class: "status good" }, "No limits breached"))]));
+  const rrows = [
+    ["Forecast volatility (22-day avg)", pct(rn.vol), pct(ra.vol)],
+    ["Forecast volatility (next day)", pct(rn.vol_1d), pct(ra.vol_1d)],
+    ["1-day VaR 95%", money(rn.var95_1d), money(ra.var95_1d)],
+    ["1-day expected shortfall 95%", money(rn.cvar95_1d), money(ra.cvar95_1d)],
+    ["1-day VaR 99%", money(rn.var99_1d), money(ra.var99_1d)],
+    ["22-day VaR 95%", money(rn.var95_22d), money(ra.var95_22d)],
+    ["Historical 1-day VaR 95%", money(rn.hist_var95_1d), money(ra.hist_var95_1d)],
+    ["Beta vs Nifty 50", fin(rn.beta) ? rn.beta.toFixed(2) : "—", fin(ra.beta) ? ra.beta.toFixed(2) : "—"],
+    ["Tracking error", pct(rn.tracking_error), pct(ra.tracking_error)],
+    ["Diversification ratio", rn.diversification.toFixed(2), ra.diversification.toFixed(2)],
+    ["Effective number of stocks", rn.effective_n.toFixed(1), ra.effective_n.toFixed(1)],
+    ["Invested", pct(rn.invested), pct(ra.invested)],
+  ];
+  $("risk-table").replaceChildren(h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Metric"), h("th", { class: "num" }, "Now"), h("th", { class: "num" }, "After rebalance"))),
+    h("tbody", {}, rrows.map(r => h("tr", {}, h("td", {}, r[0]), h("td", { class: "num" }, r[1]), h("td", { class: "num" }, r[2]))))));
+  const ctrRows = A.map((a, i) => ({ a, now: rn.pct_ctr[i], after: ra.pct_ctr[i] })).filter(x => x.now > 1e-4 || x.after > 1e-3)
+    .sort((x, y) => y.now - x.now).map(x => ({ label: x.a.symbol, values: [x.now, x.after] }));
+  legend($("legend-ctr"), wser, "rect");
+  hbars($("chart-ctr"), ctrRows, wser, v => pct(v), { tick: t => pct(t, 0), endLabel: true });
+  const secs = {}; A.forEach(a => { const e = secs[a.sector] ||= [0, 0]; e[0] += a.w_now; e[1] += a.w_target; });
+  const secRows = Object.entries(secs).filter(([, v]) => v[0] > 1e-4 || v[1] > 1e-3).sort((a, b) => b[1][1] - a[1][1]).map(([k, v]) => ({ label: k, values: v }));
+  legend($("legend-sector"), wser, "rect");
+  hbars($("chart-sector"), secRows, wser, v => pct(v), { tick: t => pct(t, 0), endLabel: true });
+  const tilt = Object.keys(rn.factor_exposure).map(k => ({ label: k, values: [rn.factor_exposure[k], ra.factor_exposure[k]] }));
+  legend($("legend-tilt"), wser, "rect");
+  hbars($("chart-tilt"), tilt, wser, z, { tick: t => t.toFixed(1), endLabel: true });
+
+  renderRank(); renderVol();
+}
+
+function renderRank() {
+  const R = REPORT; if (!R) return;
+  const q = $("rank-search").value.trim().toLowerCase(), only = $("rank-held").checked;
+  const rows = R.assets.filter(a => (!only || held(a)) && (!q || a.symbol.toLowerCase().includes(q) || a.sector.toLowerCase().includes(q)));
+  const zc = (k, label) => ({ key: k, label, num: true, fmt: z, bg: a => zTint(a[k]) });
+  table($("rank"), [
+    { key: "rank", label: "#", num: true, sortVal: a => -rankOf(a), render: a => rankOf(a) },
+    { key: "symbol", label: "Symbol", render: a => [a.symbol, held(a) ? h("span", { class: "tag" }, "held") : null] },
+    { key: "sector", label: "Sector", cls: "ink2" },
+    zc("value", "Value"), zc("quality", "Quality"), zc("growth", "Growth"), zc("momentum", "Momentum"), zc("lowvol", "Low vol"),
+    zc("composite", "Composite"),
+    { key: "alpha", label: "Alpha", num: true, fmt: v => spct(v, 2) },
+    { key: "w_now", label: "Now", num: true, fmt: v => v > 1e-4 ? pct(v) : "" },
+    { key: "w_target", label: "Target", num: true, fmt: v => v > 1e-3 ? pct(v) : "" },
+  ], rows, { sortKey: "composite", rowClass: a => held(a) ? "held" : null, empty: "No matches" });
+}
+let RANKS = null;
+const rankOf = (a) => { if (!RANKS) { RANKS = new Map([...REPORT.assets].sort((x, y) => y.composite - x.composite).map((x, i) => [x.symbol, i + 1])); } return RANKS.get(a.symbol); };
+
+/* ---------- models tab ---------- */
+let MODELS = null;
+const MILESTONES = [
+  [0, "Architecture review and integration plan"],
+  [1, "Inference service: Kronos, TTM, FinBERT on CPU"],
+  [2, "OCaml inference client with disk cache"],
+  [3, "Point-in-time fundamentals, factors, look-ahead tests"],
+  [4, "LightGBM ranker with walk-forward training"],
+  [5, "Risk model and optimiser, cvxpy cross-check"],
+  [6, "Backtest vs Nifty 50, ablations, HTML report"],
+  [7, "FinGPT live layer, news sentiment, signals"],
+  [8, "README and documentation"],
+];
+const ROLES = {
+  kronos: "21-day return forecast (core feature)",
+  ttm: "21-day volatility forecast (core feature, risk model)",
+  finbert: "Headline sentiment (live only)",
+  fingpt: "Fundamentals view from an LLM (live only)",
+};
+async function loadModels() {
+  MODELS = await api("/api/models").catch(() => null);
+  renderModels();
+}
+function svcIndicator() {
+  const hl = MODELS && MODELS.health, b = $("svcpill");
+  const st = !hl ? ["warning", "Models: unknown"] : !hl.reachable ? ["critical", "Models: offline"] : hl.ok ? ["good", "Models: online"] : ["warning", "Models: degraded"];
+  b.replaceChildren(h("span", { class: "status " + st[0] }, st[1]));
+}
+function renderModels() {
+  svcIndicator();
+  if (!MODELS) return;
+  const hl = MODELS.health;
+  $("svc-status").replaceChildren(!hl.reachable
+    ? h("span", { class: "status critical" }, `Not running at ${hl.url}. Start it here, or run make up-bg in the repository.`)
+    : h("span", { class: "status " + (hl.ok ? "good" : "warning") }, `${hl.ok ? "Running" : "Running with problems"} at ${hl.url} · device ${hl.device}`));
+  $("btn-svc-start").disabled = !!hl.reachable;
+  $("btn-svc-stop").disabled = !hl.reachable;
+  const names = { kronos: hl.kronos_model ? `Kronos (${hl.kronos_model.split("/").pop()})` : "Kronos", ttm: `Granite TTM r2${hl.ttm_branch ? " · " + hl.ttm_branch : ""}`, finbert: "FinBERT", fingpt: "FinGPT-Forecaster (Llama-3 8B LoRA)" };
+  const rows = Object.keys(ROLES).map(k => {
+    const st = hl.reachable ? (hl.models || {})[k] || "not reported" : "service offline";
+    const cls = st === "ok" ? "good" : st.startsWith("unavailable") || st === "service offline" ? "warning" : "critical";
+    return { k, name: names[k], role: ROLES[k], st, cls, secs: hl.load_seconds ? hl.load_seconds[k] : null };
+  });
+  table($("svc-models"), [
+    { key: "name", label: "Model", sort: false },
+    { key: "role", label: "Used for", sort: false, cls: "ink2 wrap-s" },
+    { key: "st", label: "Status", sort: false, cls: "wrap-s", render: r => h("span", { class: "status " + r.cls }, r.st === "ok" ? "Loaded" : r.st) },
+    { key: "secs", label: "Load time", num: true, sort: false, render: r => fin(r.secs) ? r.secs + "s" : "" },
+  ], rows);
+
+  // forecasts
+  const F = MODELS.forecasts;
+  $("fc-empty").replaceChildren(...(F ? [] : [h("div", { class: "empty" }, hl.reachable ? "No forecasts yet. Click Run forecasts." : "Start the inference service, then run forecasts.")]));
+  $("fc-body").hidden = !F;
+  for (const id of ["btn-fc-held", "btn-fc-all"]) $(id).disabled = !hl.reachable;
+  if (F) {
+    $("fc-sub").textContent = `As of ${F.as_of} · ${F.kronos_tag} · TTM ${F.ttm_branch} · ${F.scope} · run ${F.generated_at} · cache ${F.cache.hits} hits, ${F.cache.computed} computed` + (F.cache.stale ? `, ${F.cache.stale} recomputed after a data revision` : "");
+    const only = $("fc-held").checked;
+    const items = F.items.filter(i => !only || i.held);
+    const kr = items.filter(i => fin(i.kronos_return)).sort((a, b) => b.kronos_return - a.kronos_return);
+    hbars($("chart-kronos"), kr.map(i => ({ label: i.symbol, values: [i.kronos_return] })), [{ name: "Kronos 21-day return", color: css("--pos") }],
+      v => spct(v), { tick: t => spct(t, 0), endLabel: true, colorFor: v => v >= 0 ? css("--pos") : css("--neg") });
+    table($("fc-table"), [
+      { key: "symbol", label: "Symbol", render: i => [i.symbol, i.held ? h("span", { class: "tag" }, "held") : null] },
+      { key: "last_close", label: "Last close", num: true, fmt: v => num(v, 2) },
+      { key: "kronos_return", label: "Kronos 21d return", num: true, fmt: v => spct(v), cls: i => signCls(i.kronos_return) },
+      { key: "day21", label: "Kronos day-21 price", num: true, sortVal: i => i.kronos_path ? i.kronos_path[i.kronos_path.length - 1] : NaN, render: i => i.kronos_path ? num(i.kronos_path[i.kronos_path.length - 1], 2) : "—" },
+      { key: "ttm_vol_gk", label: "TTM vol (21d)", num: true, fmt: v => pct(v) },
+      { key: "trailing_vol_gk", label: "Realised (last 21d)", num: true, fmt: v => pct(v) },
+      { key: "ratio", label: "TTM ÷ realised", num: true, sortVal: i => i.ttm_vol_gk / i.trailing_vol_gk, render: i => fin(i.ttm_vol_gk) ? (i.ttm_vol_gk / i.trailing_vol_gk).toFixed(2) : "—" },
+      { key: "errors", label: "Notes", sort: false, cls: "wrap", render: i => (i.errors || []).join("; ") },
+    ], items, { sortKey: "kronos_return", rowClass: i => i.held ? "held" : null });
+    $("fc-foot").textContent = "Volatilities are annualised and measured from each day's open/high/low/close range (Garman–Klass), before calibration to close-to-close returns, which is added in Milestone 3. They will differ from the Volatility tab, which uses VolaTTM.";
+  }
+
+  // milestones
+  const done = new Set(MODELS.milestones_done || []); done.add(0);
+  const next = MILESTONES.find(([n]) => !done.has(n));
+  $("milestones").replaceChildren(...MILESTONES.map(([n, label]) => {
+    let cls = "pending", note = "Pending";
+    if (done.has(n)) { cls = "good"; note = "Done"; }
+    else if (next && n === next[0]) {
+      if (n === 3 && !(MODELS.screener_files || []).length) { cls = "critical"; note = "Waiting for a Screener.in export in data/fundamentals/"; }
+      else { cls = "warning"; note = "Next"; }
+    }
+    return h("li", {}, h("span", { class: "status " + cls }, `M${n} · ${label}`), h("div", { class: "note", style: "margin-left:14px" }, note));
+  }));
+  $("caveats").replaceChildren(...[
+    "Kronos-small and Kronos-base disagree sharply on the same inputs (HDFC Bank −0.1% vs +20.5%). Treat Kronos as weak and noisy until the backtest's information coefficient says otherwise.",
+    "Kronos tends to forecast reversion toward the average price of its 512-day window, so stocks near a 2-year low get large positive forecasts. Only the ranking across stocks will be used.",
+    "FinGPT needs a CUDA GPU with at least 10 GB of memory and a Hugging Face token. This Mac has neither, so it stays unavailable here.",
+    "FinBERT works, but free per-stock news for NSE names is thin. Google News RSS is planned for the live layer (Milestone 7).",
+    "The Overview, Recommendations and Risk tabs still come from the prototype pipeline. The ML ranker, optimiser and backtest are not built yet.",
+  ].map(t => h("li", {}, t)));
+}
+
+function renderVol() {
+  const R = REPORT; if (!R) return;
+  const H = R.assets.filter(held).sort((a, b) => b.vol_term - a.vol_term);
+  const vser = [{ name: "VolaTTM forecast (22-day avg)", color: css("--s1") }, { name: "Realised, last 22 sessions", color: css("--s2") }];
+  legend($("legend-vol"), vser, "rect");
+  hbars($("chart-vol"), H.map(a => ({ label: a.symbol, values: [a.vol_term, a.trailing_vol] })), vser, v => pct(v), { tick: t => pct(t, 0) });
+  const proxy = R.assets.some(a => a.vol_source.includes("*"));
+  $("vol-sub").textContent = "Annualised close-to-close. Regime flags compare the next-day forecast with realised volatility over the last 22 sessions." +
+    (proxy ? " * = the model was fed daily-price estimates instead of intraday realised volatility, so treat these forecasts as indicative." : "");
+  const q = $("vol-search").value.trim().toLowerCase(), only = $("vol-held").checked;
+  const rows = R.assets.filter(a => (!only || held(a)) && (!q || a.symbol.toLowerCase().includes(q)));
+  const regime = a => { const r = a.vol_1d / a.trailing_vol; return r > 1.5 ? h("span", { class: "status critical" }, "Rising") : r < 0.67 ? h("span", { class: "status good" }, "Falling") : ""; };
+  table($("vol"), [
+    { key: "symbol", label: "Symbol", render: a => [a.symbol, held(a) ? h("span", { class: "tag" }, "held") : null] },
+    { key: "vol_source", label: "Model", cls: "ink2" },
+    { key: "vol_1d", label: "Next day", num: true, fmt: v => pct(v) },
+    { key: "vol_5d", label: "Day 5", num: true, fmt: v => pct(v) },
+    { key: "vol_22d", label: "Day 22", num: true, fmt: v => pct(v) },
+    { key: "vol_term", label: "22-day avg", num: true, fmt: v => pct(v) },
+    { key: "trailing_vol", label: "Realised (22d)", num: true, fmt: v => pct(v) },
+    { key: "ratio", label: "Next day ÷ realised", num: true, sortVal: a => a.vol_1d / a.trailing_vol, render: a => (a.vol_1d / a.trailing_vol).toFixed(2) },
+    { key: "regime", label: "Regime", sort: false, render: regime },
+  ], rows, { sortKey: "vol_term", rowClass: a => held(a) ? "held" : null });
+}
+
+/* ---------- holdings & settings ---------- */
+function holdingRow(r = {}) {
+  const inUni = () => !sym.value || STATE.universe.includes(sym.value.trim().toUpperCase());
+  const sym = h("input", { value: r.symbol || "", list: "universe", placeholder: "e.g. RELIANCE", "aria-label": "Symbol", autocapitalize: "characters", spellcheck: "false" });
+  const sh = h("input", { type: "number", min: "0", step: "1", value: r.shares || "", "aria-label": "Shares", style: "text-align:right" });
+  const cost = h("input", { type: "number", min: "0", step: "0.05", value: r.cost_basis || "", placeholder: "optional", "aria-label": "Average buy price", style: "text-align:right" });
+  const flag = h("span", { class: "tag", hidden: true }, "not in data yet");
+  const upd = () => { flag.hidden = inUni(); };
+  sym.addEventListener("input", () => { sym.value = sym.value.toUpperCase(); upd(); });
+  const tr = h("tr", {}, h("td", {}, sym, flag), h("td", {}, sh), h("td", {}, cost),
+    h("td", {}, h("button", { class: "icon", title: "Remove", "aria-label": "Remove row", onclick: () => tr.remove() }, "✕")));
+  tr.read = () => ({ symbol: sym.value.trim().toUpperCase(), shares: sh.value, cost_basis: cost.value });
+  upd();
+  return tr;
+}
+const SETTINGS = [
+  ["Ranking", [
+    ["w_value", "Value weight", "Earnings, book, cash-flow and EBIT yields.", 1],
+    ["w_quality", "Quality weight", "ROE, gross profitability, low debt, low accruals.", 1],
+    ["w_growth", "Growth weight", "Revenue growth.", 1],
+    ["w_momentum", "Momentum weight", "12-1 and 6-1 month returns, distance from the 52-week high.", 1],
+    ["w_lowvol", "Low-volatility weight", "Lower VolaTTM forecast scores higher.", 1],
+    ["ic", "Signal strength (IC)", "How much the scores move expected returns. Higher means more trading.", 1],
+  ]],
+  ["Risk & limits", [
+    ["target_vol", "Target volatility", "Annualised. 0 turns the target off.", 100, "%"],
+    ["max_weight", "Max per stock", "", 100, "%"],
+    ["max_sector", "Max per sector", "", 100, "%"],
+    ["min_invested", "Min invested", "The rest stays in cash.", 100, "%"],
+    ["max_invested", "Max invested", "", 100, "%"],
+    ["risk_aversion", "Risk aversion", "Higher favours lower-risk portfolios.", 1],
+  ]],
+  ["Trading", [
+    ["tc_bps", "Trading cost", "Round-trip cost estimate: brokerage, STT, stamp duty, impact.", 1, "bps"],
+    ["holding_days", "Holding period", "Trading costs are spread over this many days.", 1, "days"],
+    ["min_trade", "Minimum trade", "Smaller weight changes are shown as HOLD.", 100, "%"],
+    ["risk_free", "Risk-free rate", "Used for Sharpe and Sortino ratios.", 100, "%"],
+  ]],
+];
+function renderHoldings() {
+  $("universe").replaceChildren(...STATE.universe.map(u => h("option", { value: u })));
+  const body = $("holdings-body");
+  body.replaceChildren(...(STATE.holdings.length ? STATE.holdings : [{}]).map(holdingRow));
+  $("cash").value = parseFloat(STATE.settings.cash) || 0;
+  $("settings-sub").textContent = `Saved to ${STATE.config_path}. Changes apply the next time you run the analysis.`;
+  const form = $("settings"); form.replaceChildren();
+  for (const [group, fields] of SETTINGS) {
+    form.append(h("div", { style: "grid-column:1/-1;font-weight:650;margin-top:4px" }, group));
+    for (const [key, label, help, scale, unit] of fields) {
+      const raw = parseFloat(STATE.settings[key]);
+      const inp = h("input", { id: "set-" + key, type: "number", step: "any", value: fin(raw) ? +(raw * scale).toFixed(6) : "" });
+      inp.dataset.key = key; inp.dataset.scale = scale;
+      form.append(h("div", { class: "field" }, h("label", { for: "set-" + key }, label),
+        h("div", { class: "unit" }, inp, unit ? h("span", {}, unit) : null), help ? h("div", { class: "help" }, help) : null));
+    }
+  }
+  const sn = STATE.settings.sector_neutral === "true";
+  form.append(h("div", { class: "field" }, h("label", { class: "check" }, h("input", { type: "checkbox", id: "set-sector_neutral", checked: sn }), "Compare value, quality and growth within sector")));
+}
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function saveHoldings() {
+  const rows = [...$("holdings-body").children].map(tr => tr.read()).filter(r => r.symbol);
+  await api("/api/holdings", { rows, cash: $("cash").value || 0 });
+  STATE = await api("/api/state");
+  const missing = rows.filter(r => !STATE.universe.includes(r.symbol)).map(r => r.symbol);
+  $("holdings-msg").textContent = "Saved." + (missing.length ? ` ${missing.join(", ")} not in the data yet: use Refresh data & run.` : " Run the analysis to update the results.");
+  return missing;
+}
+
+/* ---------- jobs ---------- */
+let polling = null;
+async function startJob(kind) {
+  try { await api("/api/run", { kind }); } catch (e) { alert(e.message); return; }
+  pollJob();
+}
+function setBusy(b) { for (const id of ["btn-run", "btn-refresh", "btn-save-run"]) $(id).disabled = b; document.body.classList.toggle("refetching", b); }
+async function pollJob() {
+  clearTimeout(polling);
+  const j = await api("/api/job").catch(() => null);
+  if (!j) return;
+  $("logtext").textContent = j.log || "(no output yet)";
+  const pill = $("jobpill");
+  if (j.running) {
+    setBusy(true); pill.hidden = false;
+    const secs = Math.round(Date.now() / 1000 - j.started);
+    const labels = { analyze: "Running analysis", refresh: "Refreshing data", refresh_analyze: "Refreshing data",
+      forecasts: "Running model forecasts", forecasts_all: "Running model forecasts (all stocks)",
+      service_start: "Starting inference service", service_stop: "Stopping inference service" };
+    pill.replaceChildren(h("i", { class: "spinner" }), `${labels[j.kind] || "Working"}… ${secs}s`);
+    polling = setTimeout(pollJob, 1000);
+  } else {
+    setBusy(false);
+    if (j.kind) {
+      pill.hidden = false;
+      pill.replaceChildren(h("span", { class: "status " + (j.ok ? "good" : "critical") }, j.ok ? "Done" : "Failed: see Log"));
+      if (j.ok) await load(); else $("logdlg").showModal();
+    }
+  }
+}
+
+/* ---------- boot ---------- */
+async function load() {
+  STATE = await api("/api/state");
+  REPORT = await api("/api/report").catch(() => null);
+  RANKS = null;
+  renderAll(); renderHoldings();
+  await loadModels();
+}
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav.tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("section[role=tabpanel]").forEach(p => p.hidden = p.id !== "tab-" + b.dataset.tab);
+  try { localStorage.setItem("tab", b.dataset.tab); } catch {}
+  renderAll(); // charts measure their container, which is 0-wide while hidden
+  renderModels();
+}));
+$("btn-run").onclick = () => startJob("analyze");
+$("btn-refresh").onclick = () => startJob("refresh_analyze");
+$("btn-log").onclick = () => $("logdlg").showModal();
+$("btn-closelog").onclick = () => $("logdlg").close();
+$("btn-addrow").onclick = () => $("holdings-body").append(holdingRow());
+$("btn-save-holdings").onclick = () => saveHoldings().catch(e => $("holdings-msg").textContent = "Error: " + e.message);
+$("btn-save-run").onclick = async () => { try { const missing = await saveHoldings(); startJob(missing.length ? "refresh_analyze" : "analyze"); } catch (e) { $("holdings-msg").textContent = "Error: " + e.message; } };
+$("btn-save-settings").onclick = async () => {
+  const settings = {};
+  document.querySelectorAll("#settings input[data-key]").forEach(i => { if (i.value !== "") settings[i.dataset.key] = parseFloat(i.value) / parseFloat(i.dataset.scale); });
+  settings.sector_neutral = $("set-sector_neutral").checked;
+  try { await api("/api/settings", { settings }); STATE = await api("/api/state"); $("settings-msg").textContent = "Saved. Run the analysis to apply."; }
+  catch (e) { $("settings-msg").textContent = "Error: " + e.message; }
+};
+for (const id of ["rank-search", "rank-held"]) $(id).addEventListener("input", renderRank);
+for (const id of ["vol-search", "vol-held"]) $(id).addEventListener("input", renderVol);
+$("btn-theme").onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch {}
+  renderAll();
+  renderModels();
+};
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { renderAll(); renderModels(); }, 150); });
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+try { const tab = localStorage.getItem("tab"); if (tab) document.querySelector(`nav.tabs button[data-tab="${tab}"]`)?.click(); } catch {}
+$("btn-svc-start").onclick = () => startJob("service_start");
+$("btn-svc-stop").onclick = () => startJob("service_stop");
+$("btn-fc-held").onclick = () => startJob("forecasts");
+$("btn-fc-all").onclick = () => startJob("forecasts_all");
+$("fc-held").addEventListener("input", renderModels);
+$("svcpill").onclick = () => document.querySelector('nav.tabs button[data-tab="models"]').click();
+setInterval(() => { if (!document.hidden) loadModels(); }, 30000);
+load().then(pollJob).catch(e => { $("banner").replaceChildren(h("div", { class: "banner" }, h("span", { class: "status critical" }, "Cannot reach the local server: " + e.message))); });
+</script>
+</body>
+</html>

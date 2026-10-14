@@ -1,0 +1,5 @@
+(library
+ (name fp)
+ (libraries unix yojson ezcurl)
+ (preprocess
+  (pps ppx_deriving_yojson)))
