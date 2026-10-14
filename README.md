@@ -1,4 +1,4 @@
-# factor_portfolio
+# Caravan
 
 An OCaml engine that tracks a live equity portfolio's returns and risk, ranks stocks
 on fundamentals and momentum, and recommends buys and sells. The recommendations come
